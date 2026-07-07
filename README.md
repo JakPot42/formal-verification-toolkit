@@ -109,4 +109,18 @@ directly as `python cli.py ...` (not just `CliRunner`), all matching
 their documented expected PASS/FAIL outcomes, output clean on a real
 Windows console.
 
-Step 3 (distribute `fv_core.py` to `lease_translator`) hasn't started yet.
+Step 3 (distribute `fv_core.py` to `lease_translator`) complete: consistency
+pass, not a fix -- `lease_verifier.py`'s own `_safe_name()` and
+`unsat_core()` usage were already correct (one of only two of this
+cluster's three source projects that were, next to this repo's own
+`z3_contract` port; `guarden_fv`'s copy had the hardcoded shortcut fixed
+standalone in Step 0). Only the internal Z3-solving boilerplate was
+swapped for `TrackedSolver`; the public `Conflict.clauses`/
+`VerificationResult` API is unchanged since `lease_translator`'s own
+`main.py` and `templates/result.html` depend on that field name. 31/31
+tests passing, zero regressions. Pushed to `JakPot42/lease-translator`.
+
+**Phase 6, Cluster 4 is fully shipped.** All three steps complete:
+`z3_contract` and `guarden_fv` merged into one CLI on shared scaffolding;
+`lease_translator` stays its own standalone FastAPI web app, now on the
+same corrected scaffolding as a consistency pass.
