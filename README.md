@@ -68,10 +68,45 @@ The one canonical version of that scaffolding:
   behavior by construction instead of re-deriving it. Directly tested with
   the same 3-constraint regression case proven in `guarden_fv`'s own fix.
 
+## The unified CLI
+
+```
+python cli.py contract verify <file> [--json-out]
+python cli.py contract demo
+python cli.py uav verify <file> [--json-out]
+python cli.py uav demo
+```
+
+`z3_contract`'s and `guarden_fv`'s real domain-check logic (`contract/verifier.py`,
+`uav/verifier.py`) ported unchanged onto `TrackedSolver` -- only the Z3
+scaffolding changed, not the vesting/liquidation/altitude/emergency/
+signal-loss logic itself. `z3_contract` had zero CLI-level test coverage
+before this merge (only its engine was tested); `fv contract` now has the
+same CLI test coverage `fv uav` already carried over from `guarden_fv`.
+
+**Real, ASCII-safety bug found and fixed while verifying end-to-end, not
+by inspection:** both projects' bundled example data use a legal/
+regulatory-citation style clause naming convention (`"§4.3 Double-Trigger
+Acceleration"`, `"§1 FAA Part 107 Altitude Ceiling"`) plus em-dashes in
+descriptions and CLI output strings -- all of which render as `�` on a
+real Windows cp1252 console, the same "ASCII-safe output" gotcha this
+portfolio has hit before (citegraph, entity-graph, media_provenance).
+Caught only by actually running `python cli.py contract verify` and
+`uav verify` against every bundled example over a real terminal, not by
+the test suite (which never asserts on exact byte content, only Python
+string equality, so the mis-encoding was invisible to `pytest`). Fixed by
+replacing the section sign with `"Sec. "` and em-dashes with `--` across
+`cli.py`, `contract/verifier.py`, and all 6 bundled example/rule-set JSON
+files.
+
 ## Status
 
-Step 0 (guarden_fv's standalone `unsat_core` fix) and Step 1 (this
-shared-core library) complete: 14 tests passing, no domain logic ported
-yet. Step 2 (port `z3_contract`'s and `guarden_fv`'s real check logic onto
-`fv_core.py`, wire up the `fv contract`/`fv uav` CLI) and Step 3
-(distribute `fv_core.py` to `lease_translator`) haven't started yet.
+Steps 0-2 complete: shared-core library, both verifiers' real domain
+logic ported, and the unified `fv contract`/`fv uav` CLI wired up. 76
+tests passing (14 `fv_core` + 20 `contract` + 26 `uav` + 16 CLI). Verified
+end-to-end with real CLI invocations -- every bundled demo scenario run
+directly as `python cli.py ...` (not just `CliRunner`), all matching
+their documented expected PASS/FAIL outcomes, output clean on a real
+Windows console.
+
+Step 3 (distribute `fv_core.py` to `lease_translator`) hasn't started yet.

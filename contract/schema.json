@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContractTermSheet",
+  "description": "Structured encoding of contract term sheet clauses for Z3 verification",
+  "type": "object",
+  "required": ["term_sheet_id", "description", "clauses"],
+  "additionalProperties": false,
+  "properties": {
+    "term_sheet_id": {
+      "type": "string",
+      "description": "Unique identifier for this term sheet"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this term sheet"
+    },
+    "clauses": {
+      "type": "object",
+      "description": "Named contract clauses with their logical terms",
+      "additionalProperties": false,
+      "properties": {
+
+        "double_trigger_acceleration": {
+          "type": "object",
+          "description": "Vesting acceleration requiring both change-of-control AND termination without cause",
+          "required": ["clause_name", "enabled"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "acceleration_pct": {
+              "type": "number", "minimum": 0, "maximum": 100,
+              "description": "Percentage of unvested shares that accelerate"
+            },
+            "months_after_coc": {
+              "type": "integer", "minimum": 0,
+              "description": "Termination must occur within this many months of change-of-control"
+            },
+            "acceleration_is_automatic": {
+              "type": "boolean",
+              "description": "True = acceleration triggers immediately with no further preconditions"
+            }
+          }
+        },
+
+        "board_veto": {
+          "type": "object",
+          "description": "Board approval requirement that may block acceleration events",
+          "required": ["clause_name"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "applies_to_all_acceleration": {
+              "type": "boolean",
+              "description": "True = board approval required before ANY vesting acceleration"
+            },
+            "applies_to_double_trigger": {
+              "type": "boolean",
+              "description": "True = board approval required specifically for double-trigger events"
+            },
+            "applies_to_single_trigger": {
+              "type": "boolean",
+              "description": "True = board approval required for single-trigger events"
+            },
+            "approval_threshold": {
+              "type": "string",
+              "enum": ["none", "majority", "unanimous"],
+              "description": "Required approval level"
+            }
+          }
+        },
+
+        "single_trigger_acceleration": {
+          "type": "object",
+          "description": "Vesting acceleration on change-of-control alone",
+          "required": ["clause_name", "enabled"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "acceleration_pct": {
+              "type": "number", "minimum": 0, "maximum": 100
+            },
+            "is_unconditional": {
+              "type": "boolean",
+              "description": "True = no additional conditions or approvals required"
+            }
+          }
+        },
+
+        "liquidation_preference": {
+          "type": "object",
+          "description": "Preferred investor payout before common shareholders receive proceeds",
+          "required": ["clause_name", "investment_amount_usd", "preference_multiple"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "investment_amount_usd": {
+              "type": "number", "minimum": 0,
+              "description": "Original investment amount in USD"
+            },
+            "preference_multiple": {
+              "type": "number", "minimum": 1,
+              "description": "Payout multiple (e.g. 2 = 2x liquidation preference)"
+            },
+            "participating": {
+              "type": "boolean",
+              "description": "True = preferred also participates in remaining proceeds after preference"
+            }
+          }
+        },
+
+        "common_minimum": {
+          "type": "object",
+          "description": "Guaranteed minimum percentage of exit proceeds for common shareholders",
+          "required": ["clause_name", "minimum_pct"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "minimum_pct": {
+              "type": "number", "minimum": 0, "maximum": 100,
+              "description": "Minimum percentage of exit proceeds guaranteed to common shareholders"
+            }
+          }
+        },
+
+        "exit_terms": {
+          "type": "object",
+          "description": "Agreed exit scenario for liquidation math verification",
+          "required": ["clause_name", "proceeds_usd"],
+          "additionalProperties": false,
+          "properties": {
+            "clause_name": { "type": "string" },
+            "proceeds_usd": {
+              "type": "number", "minimum": 0,
+              "description": "Total exit proceeds available for distribution in USD"
+            }
+          }
+        }
+
+      }
+    }
+  }
+}

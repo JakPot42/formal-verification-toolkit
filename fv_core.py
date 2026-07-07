@@ -1,5 +1,5 @@
 """
-fv_core.py — shared Z3 verification scaffolding for the Formal Verification
+fv_core.py -- shared Z3 verification scaffolding for the Formal Verification
 Toolkit (Phase 6, Cluster 4).
 
 Canonicalizes a pattern independently reimplemented three times across

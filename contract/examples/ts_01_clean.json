@@ -1,0 +1,34 @@
+{
+  "term_sheet_id": "TS-001",
+  "description": "Series A -- Clean term sheet (no logical contradictions)",
+  "clauses": {
+    "double_trigger_acceleration": {
+      "clause_name": "Sec. 4.3 Double-Trigger Acceleration",
+      "enabled": true,
+      "acceleration_pct": 100,
+      "months_after_coc": 12,
+      "acceleration_is_automatic": true
+    },
+    "board_veto": {
+      "clause_name": "Sec. 5.1 Board Approval",
+      "applies_to_all_acceleration": false,
+      "applies_to_double_trigger": false,
+      "applies_to_single_trigger": true,
+      "approval_threshold": "unanimous"
+    },
+    "liquidation_preference": {
+      "clause_name": "Sec. 6.1 Liquidation Preference",
+      "investment_amount_usd": 10000000,
+      "preference_multiple": 1,
+      "participating": false
+    },
+    "common_minimum": {
+      "clause_name": "Sec. 6.3 Common Shareholder Minimum",
+      "minimum_pct": 30
+    },
+    "exit_terms": {
+      "clause_name": "Sec. 7.1 Exit Proceeds",
+      "proceeds_usd": 15000000
+    }
+  }
+}

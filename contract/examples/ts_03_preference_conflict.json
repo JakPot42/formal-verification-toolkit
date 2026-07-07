@@ -1,0 +1,34 @@
+{
+  "term_sheet_id": "TS-003",
+  "description": "Series C -- Planted contradiction: 2x liquidation preference + 60% common floor exceed total exit proceeds",
+  "clauses": {
+    "double_trigger_acceleration": {
+      "clause_name": "Sec. 4.3 Double-Trigger Acceleration",
+      "enabled": true,
+      "acceleration_pct": 100,
+      "months_after_coc": 12,
+      "acceleration_is_automatic": true
+    },
+    "board_veto": {
+      "clause_name": "Sec. 5.1 Board Approval",
+      "applies_to_all_acceleration": false,
+      "applies_to_double_trigger": false,
+      "applies_to_single_trigger": false,
+      "approval_threshold": "none"
+    },
+    "liquidation_preference": {
+      "clause_name": "Sec. 6.1 Liquidation Preference",
+      "investment_amount_usd": 8000000,
+      "preference_multiple": 2,
+      "participating": false
+    },
+    "common_minimum": {
+      "clause_name": "Sec. 6.3 Common Shareholder Minimum",
+      "minimum_pct": 60
+    },
+    "exit_terms": {
+      "clause_name": "Sec. 7.1 Exit Proceeds",
+      "proceeds_usd": 12000000
+    }
+  }
+}
