@@ -1,126 +1,32 @@
-# Formal Verification Toolkit (Phase 6, Cluster 4)
+# Formal Verification Toolkit
 
-Merger of the "Claude extracts, Z3 decides" cluster: `z3-contract`,
-`guarden-fv`, and `lease-translator`. Architecture-first session, same
-discipline as Arbor, Analyst's Desk, and Cleared Facility Suite.
+**Formal Verification Toolkit is a command-line tool that uses a theorem prover to catch logical contradictions in rule sets — and names the exact rules that conflict.** It applies the Z3 SMT solver to two domains: contract term sheets and drone (UAV) geofencing rules. In both, the idea is the same — take a set of rules that are supposed to be internally consistent, and prove whether any combination of them contradicts.
 
-## The premise didn't hold as originally framed
+## What it does
 
-All three source projects were assumed to be CLI tools. Checked directly
-against the real code, not assumed:
+Two verifiers under one CLI:
 
-- **`z3_contract`** and **`guarden_fv`** are genuinely CLI-only (Click,
-  single-shot `verify <file>`, zero web layer, zero Claude integration
-  despite their own docstrings aspirationally mentioning it).
-- **`lease_translator`** is a live FastAPI web app (SQLAlchemy DB, Jinja2
-  templates, its own Render deployment) with a real Claude
-  extract-then-confirm-then-verify pipeline — the *only* one of the three
-  that actually calls Claude.
+- **`fv contract`** — encodes a contract term sheet's arithmetic and logical terms (vesting triggers, liquidation-preference math, board-veto thresholds) as constraints and reports whether they can all hold at once. If not, it names the specific conflicting clauses.
+- **`fv uav`** — does the same for a set of UAV geofencing rules (altitude ceilings, emergency overrides, signal-loss behavior), catching cases like an emergency-descent rule that contradicts a hard altitude floor.
 
-So "merge" means two different things here, not one Arbor-style shape:
+When the rules are contradictory, the tool doesn't just say "unsatisfiable" — it reports the minimal set of rules that clash, so you can see exactly what to fix.
 
-1. **`z3_contract` + `guarden_fv` merge into one CLI** with subcommands
-   (`fv contract verify <file>`, `fv uav verify <file>`) — both are
-   stateless, single-file, argument-in/result-out verifiers with no reason
-   to stay separate processes.
-2. **`lease_translator` stays fully standalone** (its own repo, its own
-   Render deployment) — merging a stateful web app with a real Claude
-   pipeline into a CLI would mean gutting its actual product. It receives
-   the shared `fv_core.py` as a Step 3 consistency-pass distribution
-   instead, same pattern as `facility_risk_indicator` in Cleared Facility
-   Suite.
+## How it works
 
-## What's genuinely shareable (and how it had already drifted, 3-for-3)
+The doctrine is "Claude extracts, Z3 decides": where natural-language input is involved, an AI turns it into the structured rule schema, but the contradiction-finding itself is done entirely by the Z3 solver — deterministic and provable, never a judgment call. It verifies discrete logical rule sets only; it does not model physical flight dynamics or give real-world safety guarantees.
 
-All three independently reimplemented the same scaffolding: a
-`_safe_name()` helper, a `Conflict` dataclass, a `VerificationResult`
-dataclass, and the `assert_and_track` → `check()` → map `unsat_core()`
-back to names pattern. Every copy had drifted:
+## Usage
 
-- `_safe_name()`: `z3_contract` and `lease_translator` stripped trailing
-  underscores and fell back to `"clause"` on empty; `guarden_fv`'s was a
-  bare regex substitution with neither.
-- `VerificationResult.to_dict()`: present in `guarden_fv` and
-  `lease_translator`, absent from `z3_contract` (its CLI built the JSON
-  dict inline instead).
-- **Real correctness gap, not just style drift**: `guarden_fv` never
-  called `s.unsat_core()` at all — every one of its 3 checks tracked
-  exactly 2 constraints and hardcoded both names as "the conflict"
-  whenever `check()` returned `unsat`. This produced byte-identical output
-  to the real answer for every check that existed (a 2-constraint UNSAT
-  can't drop either side without becoming SAT again), but was never
-  verified in code — only true by luck of the checks' shape. **Fixed
-  standalone in `guarden_fv`'s own repo first** (own commit, own push, own
-  regression test — see its commit history), proven with a constructed
-  3-constraint case showing the hardcoded approach would have wrongly
-  implicated an unrelated tracked constraint that the real `unsat_core()`
-  correctly excludes.
-
-## `fv_core.py`
-
-The one canonical version of that scaffolding:
-
-- **`safe_name(name)`** — the corrected version (strip + fallback).
-- **`Conflict`** / **`VerificationResult`** — one shape, with `to_dict()`.
-- **`TrackedSolver`** — wraps `Solver()` + `assert_and_track()` +
-  `check()` + real `unsat_core()`-to-name resolution in one place, so every
-  future check (in this repo or in `lease_translator`) gets the corrected
-  behavior by construction instead of re-deriving it. Directly tested with
-  the same 3-constraint regression case proven in `guarden_fv`'s own fix.
-
-## The unified CLI
-
-```
-python cli.py contract verify <file> [--json-out]
+```bash
+pip install -r requirements.txt
+python cli.py contract verify <file>     # check a contract term sheet
 python cli.py contract demo
-python cli.py uav verify <file> [--json-out]
+python cli.py uav verify <file>          # check a UAV geofencing rule set
 python cli.py uav demo
 ```
 
-`z3_contract`'s and `guarden_fv`'s real domain-check logic (`contract/verifier.py`,
-`uav/verifier.py`) ported unchanged onto `TrackedSolver` -- only the Z3
-scaffolding changed, not the vesting/liquidation/altitude/emergency/
-signal-loss logic itself. `z3_contract` had zero CLI-level test coverage
-before this merge (only its engine was tested); `fv contract` now has the
-same CLI test coverage `fv uav` already carried over from `guarden_fv`.
+Add `--json-out` for machine-readable output.
 
-**Real, ASCII-safety bug found and fixed while verifying end-to-end, not
-by inspection:** both projects' bundled example data use a legal/
-regulatory-citation style clause naming convention (`"§4.3 Double-Trigger
-Acceleration"`, `"§1 FAA Part 107 Altitude Ceiling"`) plus em-dashes in
-descriptions and CLI output strings -- all of which render as `�` on a
-real Windows cp1252 console, the same "ASCII-safe output" gotcha this
-portfolio has hit before (citegraph, entity-graph, media_provenance).
-Caught only by actually running `python cli.py contract verify` and
-`uav verify` against every bundled example over a real terminal, not by
-the test suite (which never asserts on exact byte content, only Python
-string equality, so the mis-encoding was invisible to `pytest`). Fixed by
-replacing the section sign with `"Sec. "` and em-dashes with `--` across
-`cli.py`, `contract/verifier.py`, and all 6 bundled example/rule-set JSON
-files.
+## About
 
-## Status
-
-Steps 0-2 complete: shared-core library, both verifiers' real domain
-logic ported, and the unified `fv contract`/`fv uav` CLI wired up. 76
-tests passing (14 `fv_core` + 20 `contract` + 26 `uav` + 16 CLI). Verified
-end-to-end with real CLI invocations -- every bundled demo scenario run
-directly as `python cli.py ...` (not just `CliRunner`), all matching
-their documented expected PASS/FAIL outcomes, output clean on a real
-Windows console.
-
-Step 3 (distribute `fv_core.py` to `lease_translator`) complete: consistency
-pass, not a fix -- `lease_verifier.py`'s own `_safe_name()` and
-`unsat_core()` usage were already correct (one of only two of this
-cluster's three source projects that were, next to this repo's own
-`z3_contract` port; `guarden_fv`'s copy had the hardcoded shortcut fixed
-standalone in Step 0). Only the internal Z3-solving boilerplate was
-swapped for `TrackedSolver`; the public `Conflict.clauses`/
-`VerificationResult` API is unchanged since `lease_translator`'s own
-`main.py` and `templates/result.html` depend on that field name. 31/31
-tests passing, zero regressions. Pushed to `JakPot42/lease-translator`.
-
-**Phase 6, Cluster 4 is fully shipped.** All three steps complete:
-`z3_contract` and `guarden_fv` merged into one CLI on shared scaffolding;
-`lease_translator` stays its own standalone FastAPI web app, now on the
-same corrected scaffolding as a consistency pass.
+Formal Verification Toolkit combines two independently-built verifiers — z3-contract and guarden-fv — into one CLI on shared solver scaffolding. A third, related tool, Lease Translator, applies the same technique to lease clauses and remains a standalone web app. This is part of a portfolio of national-security and defense-compliance software.
